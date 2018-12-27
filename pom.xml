@@ -10,6 +10,6 @@
     <name>parent</name>
 
     <modules>
-        <module>book01.chapter01.demo01</module>
+        <module>book1</module>
     </modules>
 </project>

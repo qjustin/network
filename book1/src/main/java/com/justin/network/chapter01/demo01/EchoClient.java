@@ -1,4 +1,4 @@
-package com.justin.network;
+package com.justin.network.chapter01.demo01;
 
 import java.io.*;
 import java.net.Socket;
