@@ -1,4 +1,4 @@
-package com.justin.network.chapter03.demo3;
+package com.justin.network.chapter03.demo03;
 
 import java.io.*;
 import java.net.ServerSocket;
