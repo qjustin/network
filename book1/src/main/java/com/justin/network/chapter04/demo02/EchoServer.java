@@ -48,10 +48,12 @@ public class EchoServer {
     public void service() throws IOException {
         serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
 
+        // 循环获得Selector的selected-keys集合
         while (selector.select() > 0) {
             Set readKeys = selector.selectedKeys();
             Iterator it = readKeys.iterator();
 
+            //循环处理每个SelectionKey
             while (it.hasNext()) {
                 SelectionKey key = null;
 
@@ -61,7 +63,7 @@ public class EchoServer {
                     // 处理接收连接就绪事件
                     if (key.isAcceptable()) {
                         ServerSocketChannel serverSocketChannel = (ServerSocketChannel) key.channel();
-                        SocketChannel socketChannel = (SocketChannel) serverSocketChannel.accept();
+                        SocketChannel socketChannel = serverSocketChannel.accept();
                         System.out.println(socketChannel.socket().getInetAddress() + ":" + socketChannel.socket().getPort());
                         socketChannel.configureBlocking(false);
                         // 用于存放用户发送过来的数据
@@ -71,12 +73,18 @@ public class EchoServer {
 
                     // 处理读就绪事件
                     if (key.isReadable()) {
+                        // 获取与SelectionKey关联的附件
                         ByteBuffer buffer = (ByteBuffer) key.attachment();
+                        // 获取与SelectionKey关联的SocketChannel
                         SocketChannel socketChannel = (SocketChannel) key.channel();
+                        // 创建一个ByteBuffer，用于存放读到的数据
                         ByteBuffer readBuff = ByteBuffer.allocate(32);
                         socketChannel.read(readBuff);
                         readBuff.flip();
+                        // 把Buffer的极限设置为容量
                         buffer.limit(buffer.capacity());
+                        // 把 readBuff中的内容拷贝到buffer中
+                        // 假定 buffer的容量足够大，不会出现缓冲区溢出异常
                         buffer.put(readBuff);
                     }
 
@@ -126,53 +134,5 @@ public class EchoServer {
 
     public static void main(String args[]) throws IOException {
         new EchoServer().service();
-    }
-
-    class Handler implements Runnable {
-        private SocketChannel socketChannel;
-
-        public Handler(SocketChannel socketChannel) {
-            this.socketChannel = socketChannel;
-        }
-
-        private PrintWriter getWriter(Socket socket) throws IOException {
-            OutputStream outputStream = socket.getOutputStream();
-            return new PrintWriter(outputStream, true);
-        }
-
-        private BufferedReader getReader(Socket socket) throws IOException {
-            InputStream inputStream = socket.getInputStream();
-            return new BufferedReader(new InputStreamReader(inputStream));
-        }
-
-        public void run() {
-            handle(socketChannel);
-        }
-
-        public void handle(SocketChannel socketChannel) {
-            try {
-                Socket socket = socketChannel.socket();
-                System.out.println("Rceived client connection from :" + socket.getInetAddress() + " : " + socket.getPort());
-
-                BufferedReader br = getReader(socket);
-                PrintWriter pw = getWriter(socket);
-
-                String msg = null;
-                while ((msg = br.readLine()) != null) {
-                    System.out.println(msg);
-                    pw.println(msg);
-                    if (msg.equals("bye"))
-                        break;
-                }
-            } catch (IOException ex) {
-                ex.printStackTrace();
-            } finally {
-                try {
-                    if (socketChannel != null) socketChannel.close();
-                } catch (IOException ex) {
-                    ex.printStackTrace();
-                }
-            }
-        }
     }
 }

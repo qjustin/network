@@ -1,19 +1,72 @@
 package com.justin.network.chapter04.demo02;
 
-import java.io.*;
-import java.net.Socket;
+import com.sun.org.apache.bcel.internal.generic.Select;
 
+import java.io.*;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
+import java.nio.channels.SocketChannel;
+import java.nio.charset.Charset;
+import java.util.Iterator;
+import java.util.Set;
+
+
+/**
+ * 非阻塞的客户端
+ * 同步，A向B发送一批数据后，必须等到B响应后才能发送下一批数据。
+ * 异步，AB操作互不干扰，各自独立。
+ *
+ * 通信的两端并不要求采用一样的通信方式。
+ *
+ */
 public class EchoClient {
-    private String host = "localhost";
-    private int port = 8000;
-    private Socket socket;
+     private SocketChannel socketChannel = null;
+     private ByteBuffer sendBuffer = ByteBuffer.allocate(1024);
+     private ByteBuffer receiveBuffer = ByteBuffer.allocate(1024);
+     private Charset charset = Charset.forName("GBK");
+     private Selector selector;
 
     public EchoClient() throws IOException {
-        socket = new Socket(host, port);
+        socketChannel = SocketChannel.open();
+        InetAddress inetAddress = InetAddress.getLocalHost();
+        InetSocketAddress inetSocketAddress = new InetSocketAddress(inetAddress, 8000);
+        socketChannel.connect(inetSocketAddress);
+        socketChannel.configureBlocking(false);
+        System.out.println("Connected to server");
+        selector = Selector.open();
     }
 
     public static void main(String args[]) throws IOException {
-        new EchoClient().talk();
+        final EchoClient client = new EchoClient();
+
+        Thread receiver = new Thread() {
+            public void run() {
+                client.receiveFromUser();
+            }
+        };
+
+        receiver.start();
+        client.talk();
+    }
+
+    public void receiveFromUser() {
+        try {
+            BufferedReader localReader = new BufferedReader(new InputStreamReader(System.in));
+            String msg = null;
+            while((msg == localReader.readLine()) != null) {
+                synchronized (senderBuffer) {
+                    sendBuffer.put(charset.encode(msg + "\r\n"));
+                }
+
+                if (msg.equals("byte")) break;
+            }
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
     }
 
     private PrintWriter getWriter(Socket socket) throws IOException {
@@ -27,30 +80,34 @@ public class EchoClient {
     }
 
     public void talk() throws IOException {
-        try {
-            BufferedReader bufferedReader = getReader(socket);
-            PrintWriter printWriter = getWriter(socket);
-            BufferedReader localReader = new BufferedReader(new InputStreamReader(System.in));
+        socketChannel.register(selector, SelectionKey.OP_READ | SelectionKey.OP_WRITE);
 
-            String msg = null;
+        while (selector.select() > 0) {
+            Set readyKeys = selector.selectedKeys();
+            Iterator it = readyKeys.iterator();
 
-            while((msg = localReader.readLine()) != null) {
-                printWriter.println(msg);
-                System.out.println(bufferedReader.readLine());
+            while(it.hasNext()) {
+                SelectionKey key = null;
+                try {
+                    key = (SelectionKey) it.next();
+                    it.remove();
+                    if (key.isReadable()) {
+                        receive(key);
+                    }
 
-                if (msg.equals("bye")) {
-                    break;
+                    if (key.isWritable()) {
+                        send(key);
+                    }
+                } catch (IOException ex) {
+                    ex.printStackTrace();
+
+                    try {
+                        if (key != null) {
+                            key.cancel();
+                            key.
+                        }
+                    }
                 }
-            }
-        }  catch (IOException ex) {
-            ex.printStackTrace();
-        } finally {
-            try {
-                if (socket != null) {
-                    socket.close();
-                }
-            } catch(IOException ex) {
-                ex.printStackTrace();
             }
         }
     }
