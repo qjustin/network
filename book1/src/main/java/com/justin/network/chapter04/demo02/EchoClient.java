@@ -57,8 +57,8 @@ public class EchoClient {
         try {
             BufferedReader localReader = new BufferedReader(new InputStreamReader(System.in));
             String msg = null;
-            while((msg == localReader.readLine()) != null) {
-                synchronized (senderBuffer) {
+            while((msg = localReader.readLine()) != null) {
+                synchronized (sendBuffer) {
                     sendBuffer.put(charset.encode(msg + "\r\n"));
                 }
 
@@ -104,11 +104,45 @@ public class EchoClient {
                     try {
                         if (key != null) {
                             key.cancel();
-                            key.
+                            key.channel().close();
                         }
+                    } catch(Exception e) {
+                        e.printStackTrace();
                     }
                 }
             }
         }
+    }
+
+    public void send(SelectionKey key) throws IOException {
+        SocketChannel socketChannel = (SocketChannel)key.channel();
+
+        synchronized (sendBuffer) {
+            sendBuffer.flip();
+            socketChannel.write(sendBuffer);
+            sendBuffer.compact();
+        }
+    }
+
+    public void receive(SelectionKey key) throws IOException {
+        SocketChannel socketChannle = (SocketChannel)key.channel();
+        socketChannle.read(receiveBuffer);
+        receiveBuffer.flip();
+        String receiveData = charset.decode(receiveBuffer).toString();
+
+        if (receiveData.indexOf("\n") == -1) return;
+
+        String outputData = receiveData.substring(0, receiveData.indexOf("\n") + 1);
+        if (outputData.equals("bye\r\n")) {
+            key.cancel();
+            socketChannle.close();
+            System.out.println("close connection");
+            selector.close();
+            System.exit(0);
+        }
+
+        ByteBuffer temp = charset.encode(outputData);
+        receiveBuffer.position(temp.limit());
+        receiveBuffer.compact();
     }
 }
