@@ -11,5 +11,6 @@
 
     <modules>
         <module>book1</module>
+        <module>book2</module>
     </modules>
 </project>
