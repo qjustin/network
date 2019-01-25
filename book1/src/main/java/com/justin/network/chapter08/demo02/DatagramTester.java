@@ -11,7 +11,7 @@ public class DatagramTester {
     private DatagramSocket receiveSocket;
     private static final int MAX_LENGTH = 3584;
 
-    public DatagramTester() throws IOException {
+  public DatagramTester() throws IOException {
         sendSocket = new DatagramSocket();
         receiveSocket = new DatagramSocket(port);
         receiver.start();
